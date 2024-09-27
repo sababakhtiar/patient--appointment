@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator typegraphql {
+  provider = "typegraphql-prisma"
+  output   = "../prisma/generated/type-graphql"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+enum AppointmentStatus {
+  UPCOMING
+  IN_PROGRESS
+  MISSED
+  COMPLETED
+}
+
+enum UserRole {
+  PATIENT
+  DOCTOR
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model User {
+  id         String    @id @default(uuid())
+  name       String?
+  email      String?   @unique
+  mobileNo   String?   @unique
+  password   String?
+  otp        String?
+  otpExpires DateTime?
+  role       UserRole  @default(PATIENT)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  doctor Doctor[]
+  Patient Patient[]
+}
+
+model Doctor {
+  id           String   @id @default(uuid())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       String   @unique
+  name         String
+  email        String
+  profilePhoto String?
+  gender       Gender
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  patients     Patient[]     @relation("DoctorPatients")
+  appointments Appointment[]
+  slots Slot[]
+}
+
+model Patient {
+  id            String   @id @default(uuid())
+  name          String
+  email         String?  @unique
+  phoneNumber   String
+  address       String
+  age           Int
+  gender        Gender
+  medicalRecord String
+  prescriptions String[]
+  photo         String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user   User   @relation(fields: [userId], references: [id])
+  userId String @unique
+  doctor   Doctor @relation("DoctorPatients", fields: [doctorId], references: [id])
+  doctorId String
+  appointments Appointment[]
+}
+
+model Appointment {
+  id              String            @id @default(uuid())
+  doctor          Doctor            @relation(fields: [doctorId], references: [id])
+  doctorId        String
+  patient         Patient           @relation(fields: [patientId], references: [id])
+  patientId       String
+  slot            Slot?             @relation(fields: [slotId], references: [id])
+  slotId          String?
+  appointmentDate DateTime
+  appointmentTime String
+  status          AppointmentStatus @default(UPCOMING)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model Slot {
+  id       String @id @default(uuid())
+  doctor   Doctor @relation(fields: [doctorId], references: [id])
+  doctorId String
+  time         String
+  isBooked     Boolean       @default(false)
+  appointments Appointment[]
+
+  @@unique([doctorId, time])
+}
+
