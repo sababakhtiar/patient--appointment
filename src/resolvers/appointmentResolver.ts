@@ -225,7 +225,10 @@ export class AppointmentResolver {
       });
     }
   }
-}cron.schedule("* * * * *", async () => {
+}
+
+
+cron.schedule("* * * * *", async () => {
   try {
     const currentDate = new Date();
     const appointments = await prisma.appointment.findMany({
@@ -238,7 +241,7 @@ export class AppointmentResolver {
     });
 
     // Process each appointment individually with error handling
-    appointments.forEach(async (appointment) => {
+    await Promise.all(appointments.map(async (appointment) => {
       try {
         const appointmentDateTime = new Date(
           `${appointment.appointmentDate.toISOString().split("T")[0]} ${
@@ -250,7 +253,6 @@ export class AppointmentResolver {
         );
 
         if (appointment.status === AppointmentStatus.UPCOMING) {
-          // Update status to IN_PROGRESS if within the appointment time range
           if (
             currentDate >= appointmentDateTime &&
             currentDate < oneHourAfterAppointment
@@ -259,15 +261,12 @@ export class AppointmentResolver {
               where: { id: appointment.id },
               data: { status: AppointmentStatus.IN_PROGRESS },
             });
-          }
-          // Update status to MISSED if the appointment has passed
-          else if (currentDate >= oneHourAfterAppointment) {
+          } else if (currentDate >= oneHourAfterAppointment) {
             await prisma.appointment.update({
               where: { id: appointment.id },
               data: { status: AppointmentStatus.MISSED },
             });
 
-            // Update the slot booking status if the appointment is missed
             if (appointment.slotId) {
               await prisma.slot.update({
                 where: { id: appointment.slotId },
@@ -280,7 +279,6 @@ export class AppointmentResolver {
             }
           }
         } else if (appointment.status === AppointmentStatus.IN_PROGRESS) {
-          // Mark the appointment as MISSED if the time has passed
           if (currentDate >= oneHourAfterAppointment) {
             await prisma.appointment.update({
               where: { id: appointment.id },
@@ -296,12 +294,14 @@ export class AppointmentResolver {
           }
         }
       } catch (err) {
-        // Handle errors specific to this appointment
         console.error(`Error processing appointment ${appointment.id}:`, err);
       }
-    });
+    }));
+
   } catch (err) {
-    // Global error handler for the entire cron job
     console.error("Error in cron job for updating appointments:", err);
+  } finally {
+    // Disconnect the Prisma client to prevent hanging connections
+    await prisma.$disconnect();
   }
 });
