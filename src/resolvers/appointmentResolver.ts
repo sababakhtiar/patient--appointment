@@ -225,66 +225,83 @@ export class AppointmentResolver {
       });
     }
   }
-}
-
-cron.schedule("* * * * *", async () => {
-  const currentDate = new Date();
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      status: {
-        in: [AppointmentStatus.UPCOMING, AppointmentStatus.IN_PROGRESS],
+}cron.schedule("* * * * *", async () => {
+  try {
+    const currentDate = new Date();
+    const appointments = await prisma.appointment.findMany({
+      where: {
+        status: {
+          in: [AppointmentStatus.UPCOMING, AppointmentStatus.IN_PROGRESS],
+        },
       },
-    },
-    include: { slot: true },
-  });
-  appointments.forEach(async (appointment) => {
-    const appointmentDateTime = new Date(
-      `${appointment.appointmentDate.toISOString().split("T")[0]} ${
-        appointment.appointmentTime
-      }`
-    );
-    const oneHourAfterAppointment = new Date(
-      appointmentDateTime.getTime() + 60 * 60 * 1000
-    );
-    if (appointment.status === AppointmentStatus.UPCOMING) {
-      if (
-        currentDate >= appointmentDateTime &&
-        currentDate < oneHourAfterAppointment
-      ) {
-        await prisma.appointment.update({
-          where: { id: appointment.id },
-          data: { status: AppointmentStatus.IN_PROGRESS },
-        });
-      } else if (currentDate >= oneHourAfterAppointment) {
-        await prisma.appointment.update({
-          where: { id: appointment.id },
-          data: { status: AppointmentStatus.MISSED },
-        });
-        if (appointment.slotId) {
-          await prisma.slot.update({
-            where: { id: appointment.slotId },
-            data: { isBooked: false },
-          });
-        } else {
-          console.error(
-            "Appointment slotId is null, unable to update slot booking status."
-          );
-        }
-      }
-    } else if (appointment.status === AppointmentStatus.IN_PROGRESS) {
-      if (currentDate >= oneHourAfterAppointment) {
-        await prisma.appointment.update({
-          where: { id: appointment.id },
-          data: { status: AppointmentStatus.MISSED },
-        });
-        if (appointment.slotId) {
-          await prisma.slot.update({
-            where: { id: appointment.slotId },
-            data: { isBooked: false },
-          });
-        }
-      }
-    }
-  });
-});
+      include: { slot: true },
+    });
 
+    // Process each appointment individually with error handling
+    appointments.forEach(async (appointment) => {
+      try {
+        const appointmentDateTime = new Date(
+          `${appointment.appointmentDate.toISOString().split("T")[0]} ${
+            appointment.appointmentTime
+          }`
+        );
+        const oneHourAfterAppointment = new Date(
+          appointmentDateTime.getTime() + 60 * 60 * 1000
+        );
+
+        if (appointment.status === AppointmentStatus.UPCOMING) {
+          // Update status to IN_PROGRESS if within the appointment time range
+          if (
+            currentDate >= appointmentDateTime &&
+            currentDate < oneHourAfterAppointment
+          ) {
+            await prisma.appointment.update({
+              where: { id: appointment.id },
+              data: { status: AppointmentStatus.IN_PROGRESS },
+            });
+          }
+          // Update status to MISSED if the appointment has passed
+          else if (currentDate >= oneHourAfterAppointment) {
+            await prisma.appointment.update({
+              where: { id: appointment.id },
+              data: { status: AppointmentStatus.MISSED },
+            });
+
+            // Update the slot booking status if the appointment is missed
+            if (appointment.slotId) {
+              await prisma.slot.update({
+                where: { id: appointment.slotId },
+                data: { isBooked: false },
+              });
+            } else {
+              console.error(
+                `Appointment ${appointment.id}: slotId is null, unable to update slot booking status.`
+              );
+            }
+          }
+        } else if (appointment.status === AppointmentStatus.IN_PROGRESS) {
+          // Mark the appointment as MISSED if the time has passed
+          if (currentDate >= oneHourAfterAppointment) {
+            await prisma.appointment.update({
+              where: { id: appointment.id },
+              data: { status: AppointmentStatus.MISSED },
+            });
+
+            if (appointment.slotId) {
+              await prisma.slot.update({
+                where: { id: appointment.slotId },
+                data: { isBooked: false },
+              });
+            }
+          }
+        }
+      } catch (err) {
+        // Handle errors specific to this appointment
+        console.error(`Error processing appointment ${appointment.id}:`, err);
+      }
+    });
+  } catch (err) {
+    // Global error handler for the entire cron job
+    console.error("Error in cron job for updating appointments:", err);
+  }
+});
