@@ -4,7 +4,9 @@
   "main": "index.js",
 
   "scripts": {
-     "start": "node --max-old-space-size=8192 -r ts-node/register src/index.ts  # Increase to 8GB",
+    "start": "NODE_OPTIONS='--max-old-space-size=512' node -r ts-node/register src/index.ts", 
+    "start:dev": "NODE_ENV=development NODE_OPTIONS='--max-old-space-size=512' nodemon -r ts-node/register src/index.ts",
+    "start:prod": "NODE_ENV=production NODE_OPTIONS='--max-old-space-size=512' node -r ts-node/register src/index.ts", 
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
