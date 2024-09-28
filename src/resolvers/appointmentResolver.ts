@@ -169,33 +169,33 @@ export class AppointmentResolver {
 }
 
 // Cron job optimization
-// cron.schedule("* * * * *", async () => {
-//   try {
-//     const currentDate = new Date();
-//     const appointments = await prisma.appointment.findMany({
-//       where: { status: { in: [AppointmentStatus.UPCOMING, AppointmentStatus.IN_PROGRESS] } },
-//       select: { id: true, appointmentDate: true, appointmentTime: true, status: true, slotId: true },
-//     });
+cron.schedule("* * * * *", async () => {
+  try {
+    const currentDate = new Date();
+    const appointments = await prisma.appointment.findMany({
+      where: { status: { in: [AppointmentStatus.UPCOMING, AppointmentStatus.IN_PROGRESS] } },
+      select: { id: true, appointmentDate: true, appointmentTime: true, status: true, slotId: true },
+    });
 
-//     const updateTasks = appointments.map(async (appointment) => {
-//       const appointmentDateTime = new Date(`${appointment.appointmentDate.toISOString().split("T")[0]} ${appointment.appointmentTime}`);
-//       const oneHourAfterAppointment = new Date(appointmentDateTime.getTime() + 60 * 60 * 1000);
+    const updateTasks = appointments.map(async (appointment) => {
+      const appointmentDateTime = new Date(`${appointment.appointmentDate.toISOString().split("T")[0]} ${appointment.appointmentTime}`);
+      const oneHourAfterAppointment = new Date(appointmentDateTime.getTime() + 60 * 60 * 1000);
 
-//       if (appointment.status === AppointmentStatus.UPCOMING) {
-//         if (currentDate >= appointmentDateTime && currentDate < oneHourAfterAppointment) {
-//           return prisma.appointment.update({ where: { id: appointment.id }, data: { status: AppointmentStatus.IN_PROGRESS } });
-//         } else if (currentDate >= oneHourAfterAppointment) {
-//           return prisma.appointment.update({ where: { id: appointment.id }, data: { status: AppointmentStatus.MISSED } });
-//         }
-//       } else if (appointment.status === AppointmentStatus.IN_PROGRESS && currentDate >= oneHourAfterAppointment) {
-//         return prisma.appointment.update({ where: { id: appointment.id }, data: { status: AppointmentStatus.MISSED } });
-//       }
-//     });
+      if (appointment.status === AppointmentStatus.UPCOMING) {
+        if (currentDate >= appointmentDateTime && currentDate < oneHourAfterAppointment) {
+          return prisma.appointment.update({ where: { id: appointment.id }, data: { status: AppointmentStatus.IN_PROGRESS } });
+        } else if (currentDate >= oneHourAfterAppointment) {
+          return prisma.appointment.update({ where: { id: appointment.id }, data: { status: AppointmentStatus.MISSED } });
+        }
+      } else if (appointment.status === AppointmentStatus.IN_PROGRESS && currentDate >= oneHourAfterAppointment) {
+        return prisma.appointment.update({ where: { id: appointment.id }, data: { status: AppointmentStatus.MISSED } });
+      }
+    });
 
-//     await Promise.all(updateTasks);
-//   } catch (error) {
-//     console.error("Error in cron job:", error);
-//   } finally {
-//     await prisma.$disconnect();
-//   }
-// });
+    await Promise.all(updateTasks);
+  } catch (error) {
+    console.error("Error in cron job:", error);
+  } finally {
+    await prisma.$disconnect();
+  }
+});
