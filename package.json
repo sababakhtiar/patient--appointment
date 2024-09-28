@@ -2,6 +2,7 @@
   "name": "patient-appointment",
   "version": "1.0.0",
   "main": "index.js",
+    "type": "module",
 
   "scripts": {
     "start": "node --inspect --max-old-space-size=1024 src/index.ts",
