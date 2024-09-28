@@ -84,6 +84,46 @@ let AppointmentResolver = class AppointmentResolver {
             });
         }
     }
+    // @Mutation(() => String)
+    // @UseMiddleware(isAuth)
+    // async updateAppointment(
+    //   @Arg("appointmentId") appointmentId: string,
+    //   @Arg("status", () => AppointmentStatus, {
+    //     defaultValue: AppointmentStatus.UPCOMING,
+    //   })
+    //   status: AppointmentStatus,
+    //   @Ctx() context: ContextType,
+    //   @Arg("appointmentTime", { nullable: true }) appointmentTime?: string,
+    //   @Arg("appointmentDate", { nullable: true }) appointmentDate?: string
+    // ): Promise<string> {
+    //   try {
+    //     const { user } = context;
+    //     const existingAppointment = await prisma.appointment.findUnique({
+    //       where: { id: appointmentId },
+    //       include: { doctor: true, patient: true },
+    //     });
+    //     if (!existingAppointment || (user.role !== "PATIENT" && user.id !== existingAppointment.doctor.userId)) {
+    //       throw new GraphQLError("Invalid or unauthorized request.");
+    //     }
+    //     validateStatus(status);
+    //     const parsedAppointmentDate = appointmentDate
+    //       ? validateAppointmentDate(appointmentDate)
+    //       : existingAppointment.appointmentDate;
+    //     await prisma.appointment.update({
+    //       where: { id: appointmentId },
+    //       data: {
+    //         status,
+    //         appointmentDate: parsedAppointmentDate,
+    //         appointmentTime: appointmentTime || existingAppointment.appointmentTime,
+    //       },
+    //     });
+    //     return `Appointment updated successfully.`;
+    //   } catch (error) {
+    //     throw new GraphQLError("Failed to update appointment.", {
+    //       extensions: { code: "INTERNAL_SERVER_ERROR" },
+    //     });
+    //   }
+    // }
     async updateAppointment(appointmentId, status, context, appointmentTime, appointmentDate) {
         try {
             const { user } = context;
@@ -106,7 +146,13 @@ let AppointmentResolver = class AppointmentResolver {
                     appointmentTime: appointmentTime || existingAppointment.appointmentTime,
                 },
             });
-            return `Appointment updated successfully.`;
+            // Send appointment update email
+            const role = user.role;
+            const doctorName = existingAppointment.doctor.name;
+            const patientName = existingAppointment.patient.name;
+            const recipientEmail = role === "PATIENT" ? existingAppointment.doctor.email : existingAppointment.patient.email;
+            await sendAppointmentUpdateEmail(recipientEmail, doctorName, patientName, parsedAppointmentDate, role);
+            return `Appointment updated successfully. An email notification has been sent.`;
         }
         catch (error) {
             throw new graphql_1.GraphQLError("Failed to update appointment.", {
@@ -207,3 +253,6 @@ node_cron_1.default.schedule("* * * * *", async () => {
         await prisma_config_1.default.$disconnect();
     }
 });
+function sendAppointmentUpdateEmail(recipientEmail, doctorName, patientName, parsedAppointmentDate, role) {
+    throw new Error("Function not implemented.");
+}

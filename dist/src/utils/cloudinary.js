@@ -15,16 +15,16 @@ cloudinary_1.v2.config({
 });
 const uploadToCloudinary = async (filename) => {
     const mainDir = path_1.default.dirname(require.main?.filename || "");
-    const filePath = path_1.default.join(mainDir, "assets", "images", filename);
+    const filePath = path_1.default.join(mainDir, "assets/images", filename);
     if (!fs_1.default.existsSync(filePath)) {
-        throw new graphql_1.GraphQLError(`File '${filename}' does not exist in the uploads directory.`);
+        throw new graphql_1.GraphQLError(`File '${filename}' does not exist in the images directory.`);
     }
     try {
         const uploadedFile = await cloudinary_1.v2.uploader.upload(filePath);
         return uploadedFile.secure_url;
     }
     catch (error) {
-        throw new graphql_1.GraphQLError(`${filename} upload to Cloudinary failed: ${error.message}`);
+        throw new graphql_1.GraphQLError(`${filename} upload to Cloudinary failed`);
     }
 };
 exports.uploadToCloudinary = uploadToCloudinary;
