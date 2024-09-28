@@ -15,7 +15,7 @@ cloudinary_1.v2.config({
 });
 const uploadToCloudinary = async (filename) => {
     const mainDir = path_1.default.dirname(require.main?.filename || "");
-    const filePath = path_1.default.join(mainDir, "assets/images", filename);
+    const filePath = path_1.default.join(mainDir, "assets", "images", filename);
     if (!fs_1.default.existsSync(filePath)) {
         throw new graphql_1.GraphQLError(`File '${filename}' does not exist in the images directory.`);
     }

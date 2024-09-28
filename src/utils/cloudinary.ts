@@ -11,7 +11,7 @@ cloudinary.config({
 
 export const uploadToCloudinary = async (filename: string): Promise<string> => {
   const mainDir = path.dirname(require.main?.filename || "");
-  const filePath = path.join(mainDir, "assets/images", filename);
+  const filePath = path.join(mainDir,"assets","images",filename);
 
   if (!fs.existsSync(filePath)) {
     throw new GraphQLError(
