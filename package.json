@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-       "start": "node --max-old-space-size=1024 -r ts-node/register src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+       "start": "node --max-old-space-size=1024  disc/index.js",
+   
+  "build":"tsc"
   },
   "author": "",
   "license": "ISC",
