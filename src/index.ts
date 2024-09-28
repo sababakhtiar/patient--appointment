@@ -10,6 +10,7 @@ import { AppointmentResolver } from "./resolvers/appointmentResolver";
 import { FilterResolver } from "./resolvers/filterPatientResolver";
 import {AppointmentfetchResolver } from "./resolvers/fetchAppointmentResolver";
 import prisma from "./libs/prisma.config"
+
 async function bootstrap() {
   const schema = await buildSchema({
     resolvers: [
