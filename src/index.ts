@@ -1,4 +1,5 @@
-
+import dotenv from "dotenv";
+dotenv.config();
 import "reflect-metadata";
 import { createServer } from "node:http";
 import { createYoga } from "graphql-yoga";
