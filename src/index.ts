@@ -1,5 +1,4 @@
-import dotenv from "dotenv";
-dotenv.config();
+
 import "reflect-metadata";
 import { createServer } from "node:http";
 import { createYoga } from "graphql-yoga";
@@ -10,6 +9,7 @@ import { PatientResolver } from "./resolvers/patientResolver";
 import { resolvers as PrismaResolvers } from "../prisma/generated/type-graphql";
 import { AppointmentResolver } from "./resolvers/appointmentResolver";
 import { FilterResolver } from "./resolvers/filterPatientResolver";
+import {RescheduleResolver} from "./resolvers/rescheduleAppointment";
 import {AppointmentfetchResolver } from "./resolvers/fetchAppointmentResolver";
 import prisma from "./libs/prisma.config"
 
@@ -21,6 +21,7 @@ async function bootstrap() {
       PatientResolver,
       DoctorResolver,
       AppointmentResolver,
+      RescheduleResolver,
       FilterResolver,
       AppointmentfetchResolver
     ],

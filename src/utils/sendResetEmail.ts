@@ -1,4 +1,4 @@
-// 
+
 
 
 import { sendMail } from "./mailer"; // Import the reusable mailer function
@@ -6,6 +6,7 @@ import { sendMail } from "./mailer"; // Import the reusable mailer function
 export async function sendResetEmail(email: string, resetToken: string) {
   const subject = "Password Reset Request";
   const html = `
+  
     <h3>Password Reset Request</h3>
     <p>Hi,</p>
     <p>You requested a password reset. Please use the following token to reset your password:</p>

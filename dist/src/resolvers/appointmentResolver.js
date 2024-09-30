@@ -28,22 +28,41 @@ const prisma_config_1 = __importDefault(require("../libs/prisma.config"));
 let AppointmentResolver = class AppointmentResolver {
     async createAppointment(doctorIdentifier, appointmentTime, appointmentDate, status, context) {
         try {
-            const { user } = context;
-            if (!user || user.role !== "PATIENT") {
-                throw new graphql_1.GraphQLError("Invalid or unauthorized request.");
+            const user = context.user;
+            if (!user) {
+                throw new graphql_1.GraphQLError("Invalid or missing token.");
             }
-            const [patient, doctor] = await Promise.all([
-                prisma_config_1.default.patient.findUnique({ where: { userId: user.id } }),
-                prisma_config_1.default.doctor.findFirst({
-                    where: { OR: [{ name: doctorIdentifier }, { email: doctorIdentifier }] },
-                }),
-            ]);
-            if (!patient || !doctor) {
-                throw new graphql_1.GraphQLError("Patient or doctor does not exist.");
+            if (user.role !== "PATIENT") {
+                throw new graphql_1.GraphQLError("Only patients can create appointments.");
+            }
+            const patient = await prisma_config_1.default.patient.findUnique({
+                where: { userId: user.id },
+            });
+            if (!patient) {
+                throw new graphql_1.GraphQLError("Patient profile does not exist.");
+            }
+            const doctor = await prisma_config_1.default.doctor.findFirst({
+                where: {
+                    OR: [{ name: doctorIdentifier }, { email: doctorIdentifier }],
+                },
+            });
+            if (!doctor) {
+                throw new graphql_1.GraphQLError(`Doctor does not exist.`);
             }
             (0, validation_1.validateAppointmentStatus)(status);
             const appointmentDateUTC = (0, validation_1.validateAppointmentDate)(appointmentDate);
             (0, validation_1.validateAppointmentTime)(appointmentTime, appointmentDateUTC);
+            // Check for conflicting appointments at the same date and time
+            const conflictingAppointment = await prisma_config_1.default.appointment.findFirst({
+                where: {
+                    doctorId: doctor.id,
+                    appointmentDate: (0, date_fns_1.formatISO)(appointmentDateUTC),
+                    appointmentTime: appointmentTime,
+                },
+            });
+            if (conflictingAppointment) {
+                throw new graphql_1.GraphQLError(`Doctor is not available at ${appointmentTime} on ${appointmentDate}.`);
+            }
             const slot = await prisma_config_1.default.slot.findFirst({
                 where: {
                     doctorId: doctor.id,
@@ -51,129 +70,65 @@ let AppointmentResolver = class AppointmentResolver {
                     appointments: {
                         none: {
                             appointmentDate: (0, date_fns_1.formatISO)(appointmentDateUTC),
-                            appointmentTime,
+                            appointmentTime: appointmentTime,
                         },
                     },
                 },
             });
             if (!slot) {
-                throw new graphql_1.GraphQLError(`Doctor is not available at ${appointmentTime} on ${appointmentDate}.`);
+                throw new graphql_1.GraphQLError("Slot is not available.");
             }
-            await Promise.all([
-                prisma_config_1.default.appointment.create({
-                    data: {
-                        id: (0, uuid_1.v4)(),
-                        doctorId: doctor.id,
-                        patientId: patient.id,
-                        appointmentDate: (0, date_fns_1.formatISO)(appointmentDateUTC),
-                        appointmentTime,
-                        slotId: slot.id,
-                        status,
-                    },
-                }),
-                prisma_config_1.default.slot.update({
-                    where: { id: slot.id },
-                    data: { isBooked: true },
-                }),
-            ]);
-            return `Appointment created successfully with Dr. ${doctor.name} at ${appointmentTime} on ${appointmentDate}.`;
-        }
-        catch (error) {
-            throw new graphql_1.GraphQLError("Failed to create appointment.", {
-                extensions: { code: "INTERNAL_SERVER_ERROR" },
-            });
-        }
-    }
-    // @Mutation(() => String)
-    // @UseMiddleware(isAuth)
-    // async updateAppointment(
-    //   @Arg("appointmentId") appointmentId: string,
-    //   @Arg("status", () => AppointmentStatus, {
-    //     defaultValue: AppointmentStatus.UPCOMING,
-    //   })
-    //   status: AppointmentStatus,
-    //   @Ctx() context: ContextType,
-    //   @Arg("appointmentTime", { nullable: true }) appointmentTime?: string,
-    //   @Arg("appointmentDate", { nullable: true }) appointmentDate?: string
-    // ): Promise<string> {
-    //   try {
-    //     const { user } = context;
-    //     const existingAppointment = await prisma.appointment.findUnique({
-    //       where: { id: appointmentId },
-    //       include: { doctor: true, patient: true },
-    //     });
-    //     if (!existingAppointment || (user.role !== "PATIENT" && user.id !== existingAppointment.doctor.userId)) {
-    //       throw new GraphQLError("Invalid or unauthorized request.");
-    //     }
-    //     validateStatus(status);
-    //     const parsedAppointmentDate = appointmentDate
-    //       ? validateAppointmentDate(appointmentDate)
-    //       : existingAppointment.appointmentDate;
-    //     await prisma.appointment.update({
-    //       where: { id: appointmentId },
-    //       data: {
-    //         status,
-    //         appointmentDate: parsedAppointmentDate,
-    //         appointmentTime: appointmentTime || existingAppointment.appointmentTime,
-    //       },
-    //     });
-    //     return `Appointment updated successfully.`;
-    //   } catch (error) {
-    //     throw new GraphQLError("Failed to update appointment.", {
-    //       extensions: { code: "INTERNAL_SERVER_ERROR" },
-    //     });
-    //   }
-    // }
-    async updateAppointment(appointmentId, status, context, appointmentTime, appointmentDate) {
-        try {
-            const { user } = context;
-            const existingAppointment = await prisma_config_1.default.appointment.findUnique({
-                where: { id: appointmentId },
-                include: { doctor: true, patient: true },
-            });
-            if (!existingAppointment || (user.role !== "PATIENT" && user.id !== existingAppointment.doctor.userId)) {
-                throw new graphql_1.GraphQLError("Invalid or unauthorized request.");
-            }
-            (0, validation_1.validateStatus)(status);
-            const parsedAppointmentDate = appointmentDate
-                ? (0, validation_1.validateAppointmentDate)(appointmentDate)
-                : existingAppointment.appointmentDate;
-            await prisma_config_1.default.appointment.update({
-                where: { id: appointmentId },
+            await prisma_config_1.default.appointment.create({
                 data: {
+                    id: (0, uuid_1.v4)(),
+                    doctorId: doctor.id,
+                    patientId: patient.id,
+                    appointmentDate: (0, date_fns_1.formatISO)(appointmentDateUTC),
+                    appointmentTime,
+                    slotId: slot.id,
                     status,
-                    appointmentDate: parsedAppointmentDate,
-                    appointmentTime: appointmentTime || existingAppointment.appointmentTime,
                 },
             });
-            // Send appointment update email
-            const role = user.role;
-            const doctorName = existingAppointment.doctor.name;
-            const patientName = existingAppointment.patient.name;
-            const recipientEmail = role === "PATIENT" ? existingAppointment.doctor.email : existingAppointment.patient.email;
-            await sendAppointmentUpdateEmail(recipientEmail, doctorName, patientName, parsedAppointmentDate, role);
-            return `Appointment updated successfully. An email notification has been sent.`;
+            await prisma_config_1.default.slot.update({
+                where: { id: slot.id },
+                data: { isBooked: true },
+            });
+            return `Appointment created successfully for patient ${patient.name} with Doctor ${doctor.name} at ${appointmentTime} on ${appointmentDate}.`;
         }
         catch (error) {
-            throw new graphql_1.GraphQLError("Failed to update appointment.", {
+            if (error instanceof graphql_1.GraphQLError) {
+                throw error;
+            }
+            throw new graphql_1.GraphQLError("Failed to create appointment.", {
                 extensions: { code: "INTERNAL_SERVER_ERROR" },
             });
         }
     }
     async deleteAppointment(appointmentId, context) {
         try {
-            const { user } = context;
+            const user = context.user;
+            if (!user) {
+                throw new graphql_1.GraphQLError("Invalid or missing token.");
+            }
             const appointment = await prisma_config_1.default.appointment.findUnique({
                 where: { id: appointmentId },
                 include: { doctor: true, patient: true },
             });
-            if (!appointment || (user.role !== "PATIENT" && user.id !== appointment.doctor.userId)) {
-                throw new graphql_1.GraphQLError("Invalid or unauthorized request.");
+            if (!appointment) {
+                throw new graphql_1.GraphQLError("Appointment does not exist.");
             }
-            await prisma_config_1.default.appointment.delete({ where: { id: appointmentId } });
-            return `Appointment deleted successfully.`;
+            if (user.role !== "PATIENT" && user.id !== appointment.doctor.userId) {
+                throw new graphql_1.GraphQLError("Only the patient or doctor associated with the appointment can delete it.");
+            }
+            await prisma_config_1.default.appointment.delete({
+                where: { id: appointmentId },
+            });
+            return `Appointment with Dr. ${appointment.doctor.name} for patient ${appointment.patient.name} has been deleted.`;
         }
         catch (error) {
+            if (error instanceof graphql_1.GraphQLError) {
+                throw error;
+            }
             throw new graphql_1.GraphQLError("Failed to delete appointment.", {
                 extensions: { code: "INTERNAL_SERVER_ERROR" },
             });
@@ -199,20 +154,6 @@ __decorate([
     (0, type_graphql_1.Mutation)(() => String),
     (0, type_graphql_1.UseMiddleware)(isAuth_1.isAuth),
     __param(0, (0, type_graphql_1.Arg)("appointmentId")),
-    __param(1, (0, type_graphql_1.Arg)("status", () => type_graphql_2.AppointmentStatus, {
-        defaultValue: type_graphql_2.AppointmentStatus.UPCOMING,
-    })),
-    __param(2, (0, type_graphql_1.Ctx)()),
-    __param(3, (0, type_graphql_1.Arg)("appointmentTime", { nullable: true })),
-    __param(4, (0, type_graphql_1.Arg)("appointmentDate", { nullable: true })),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, Object, String, String]),
-    __metadata("design:returntype", Promise)
-], AppointmentResolver.prototype, "updateAppointment", null);
-__decorate([
-    (0, type_graphql_1.Mutation)(() => String),
-    (0, type_graphql_1.UseMiddleware)(isAuth_1.isAuth),
-    __param(0, (0, type_graphql_1.Arg)("appointmentId")),
     __param(1, (0, type_graphql_1.Ctx)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, Object]),
@@ -221,38 +162,56 @@ __decorate([
 exports.AppointmentResolver = AppointmentResolver = __decorate([
     (0, type_graphql_1.Resolver)()
 ], AppointmentResolver);
-// Cron job optimization
 node_cron_1.default.schedule("* * * * *", async () => {
-    try {
-        const currentDate = new Date();
-        const appointments = await prisma_config_1.default.appointment.findMany({
-            where: { status: { in: [type_graphql_2.AppointmentStatus.UPCOMING, type_graphql_2.AppointmentStatus.IN_PROGRESS] } },
-            select: { id: true, appointmentDate: true, appointmentTime: true, status: true, slotId: true },
-        });
-        const updateTasks = appointments.map(async (appointment) => {
-            const appointmentDateTime = new Date(`${appointment.appointmentDate.toISOString().split("T")[0]} ${appointment.appointmentTime}`);
-            const oneHourAfterAppointment = new Date(appointmentDateTime.getTime() + 60 * 60 * 1000);
-            if (appointment.status === type_graphql_2.AppointmentStatus.UPCOMING) {
-                if (currentDate >= appointmentDateTime && currentDate < oneHourAfterAppointment) {
-                    return prisma_config_1.default.appointment.update({ where: { id: appointment.id }, data: { status: type_graphql_2.AppointmentStatus.IN_PROGRESS } });
+    const currentDate = new Date();
+    const appointments = await prisma_config_1.default.appointment.findMany({
+        where: {
+            status: {
+                in: [type_graphql_2.AppointmentStatus.UPCOMING, type_graphql_2.AppointmentStatus.IN_PROGRESS],
+            },
+        },
+        include: { slot: true },
+    });
+    appointments.forEach(async (appointment) => {
+        const appointmentDateTime = new Date(`${appointment.appointmentDate.toISOString().split("T")[0]} ${appointment.appointmentTime}`);
+        const oneHourAfterAppointment = new Date(appointmentDateTime.getTime() + 60 * 60 * 1000);
+        if (appointment.status === type_graphql_2.AppointmentStatus.UPCOMING) {
+            if (currentDate >= appointmentDateTime &&
+                currentDate < oneHourAfterAppointment) {
+                await prisma_config_1.default.appointment.update({
+                    where: { id: appointment.id },
+                    data: { status: type_graphql_2.AppointmentStatus.IN_PROGRESS },
+                });
+            }
+            else if (currentDate >= oneHourAfterAppointment) {
+                await prisma_config_1.default.appointment.update({
+                    where: { id: appointment.id },
+                    data: { status: type_graphql_2.AppointmentStatus.MISSED },
+                });
+                if (appointment.slotId) {
+                    await prisma_config_1.default.slot.update({
+                        where: { id: appointment.slotId },
+                        data: { isBooked: false },
+                    });
                 }
-                else if (currentDate >= oneHourAfterAppointment) {
-                    return prisma_config_1.default.appointment.update({ where: { id: appointment.id }, data: { status: type_graphql_2.AppointmentStatus.MISSED } });
+                else {
+                    console.error("Appointment slotId is null, unable to update slot booking status.");
                 }
             }
-            else if (appointment.status === type_graphql_2.AppointmentStatus.IN_PROGRESS && currentDate >= oneHourAfterAppointment) {
-                return prisma_config_1.default.appointment.update({ where: { id: appointment.id }, data: { status: type_graphql_2.AppointmentStatus.MISSED } });
+        }
+        else if (appointment.status === type_graphql_2.AppointmentStatus.IN_PROGRESS) {
+            if (currentDate >= oneHourAfterAppointment) {
+                await prisma_config_1.default.appointment.update({
+                    where: { id: appointment.id },
+                    data: { status: type_graphql_2.AppointmentStatus.MISSED },
+                });
+                if (appointment.slotId) {
+                    await prisma_config_1.default.slot.update({
+                        where: { id: appointment.slotId },
+                        data: { isBooked: false },
+                    });
+                }
             }
-        });
-        await Promise.all(updateTasks);
-    }
-    catch (error) {
-        console.error("Error in cron job:", error);
-    }
-    finally {
-        await prisma_config_1.default.$disconnect();
-    }
+        }
+    });
 });
-function sendAppointmentUpdateEmail(recipientEmail, doctorName, patientName, parsedAppointmentDate, role) {
-    throw new Error("Function not implemented.");
-}

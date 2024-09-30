@@ -1,29 +1,23 @@
-import { sendMail } from "./mailer"; // Import the reusable mailer function
 
-async function sendAppointmentUpdateEmail(
-  recipientEmail: string, 
-  doctorName: string, 
-  patientName: string, 
-  date: string, 
-  time: string, 
-  role: string
-) {
-  let subject: string;
-  let html: string;
 
-  if (role === "PATIENT") {
-    subject = "Appointment Update from Patient";
-    html = `
-      <h3>Appointment Updated</h3>
-      <p>Your patient <strong>${patientName}</strong> has updated the appointment scheduled for <strong>${date}</strong> at <strong>${time}</strong>.</p>
+export const getAppointmentRescheduledEmail = (
+    doctorName: string,
+    patientName: string,
+    appointmentDate: Date,
+    appointmentTime: string,
+    status: string,
+ 
+  ): string => {
+    return `
+      <p>The appointment has been <strong>rescheduled</strong>.</p>
+      <p>Appointment Details:</p>
+      <ul>
+        <li><strong>Doctor:</strong> Dr. ${doctorName}</li>
+        <li><strong>Patient:</strong> ${patientName}</li>
+        <li><strong>Date:</strong> ${appointmentDate}</li>
+        <li><strong>Time:</strong> ${appointmentTime}</li>
+        <li><strong>Status:</strong> ${status}</li>
+      </ul>
     `;
-  } else {
-    subject = "Appointment Update from Doctor";
-    html = `
-      <h3>Appointment Updated</h3>
-      <p>Your doctor <strong>${doctorName}</strong> has updated the appointment scheduled for <strong>${date}</strong> at <strong>${time}</strong>.</p>
-    `;
-  }
-
-  return await sendMail(recipientEmail, subject, html);
-}
+  };
+  
