@@ -26,17 +26,19 @@ let FilterResolver = class FilterResolver {
     async getPatientsByDoctor(context, gender, ageRange, status) {
         try {
             const user = context.user;
+            console.log("User context: ", user);
             if (!user) {
                 throw new graphql_1.GraphQLError("Invalid or missing token.");
             }
             if (user.role !== "DOCTOR") {
                 throw new graphql_1.GraphQLError("Only doctors can access this data.");
             }
-            const doctor = await prisma_config_1.default.doctor.findUnique({
-                where: { id: user.id },
+            const doctor = await prisma_config_1.default.doctor.findFirst({
+                where: { userId: user.id },
             });
+            console.log("Doctor from DB: ", doctor);
             if (!doctor) {
-                throw new graphql_1.GraphQLError(`Doctor does not exist.`);
+                throw new graphql_1.GraphQLError(`Doctor with ID ${user.id} does not exist.`);
             }
             const patientFilters = {
                 doctorId: doctor.id,

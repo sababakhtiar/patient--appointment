@@ -18,6 +18,7 @@ export class FilterResolver {
   ): Promise<Patient[]> {
     try {
       const user = context.user;
+      console.log("User context: ", user);
       if (!user) {
         throw new GraphQLError("Invalid or missing token.");
       }
@@ -26,12 +27,13 @@ export class FilterResolver {
         throw new GraphQLError("Only doctors can access this data.");
       }
 
-      const doctor = await prisma.doctor.findUnique({
-        where: { id: user.id },
+      const doctor = await prisma.doctor.findFirst({
+        where: {userId:user.id},
       });
+      console.log("Doctor from DB: ", doctor);
 
       if (!doctor) {
-        throw new GraphQLError(`Doctor does not exist.`);
+        throw new GraphQLError(`Doctor with ID ${user.id} does not exist.`);
       }
 
       const patientFilters: PatientFilter = {
