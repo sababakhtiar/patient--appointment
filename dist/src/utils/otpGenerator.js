@@ -22,3 +22,5 @@ async function sendOTPToMobile(mobileNo, otp) {
         throw new Error("Failed to send OTP. Please try again.");
     }
 }
+// "start": "node --max-old-space-size=1024  dist/src/index.js",
+// "build": "tsc"

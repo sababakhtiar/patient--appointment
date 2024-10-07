@@ -120,47 +120,108 @@ let AuthResolver = class AuthResolver {
             });
         }
     }
+    // @Mutation(() => String)
+    // async loginWithMobile(
+    //   @Arg("mobileNo") mobileNo: string,
+    //   @Arg("otp", { nullable: true }) otp?: string
+    // ): Promise<string> {
+    //   try {
+    //     const user = await prisma.user.findUnique({ where: { mobileNo } });
+    //     if (!user) {
+    //       throw new GraphQLError(
+    //         "User not found. Please check the phone number and try again."
+    //       );
+    //     }
+    //     if (!otp) {
+    //       const generatedOtp = generateOTP();
+    //       await sendOTPToMobile(user.mobileNo as string, generatedOtp);
+    //       await prisma.user.update({
+    //         where: { id: user.id },
+    //         data: {
+    //           otp: generatedOtp,
+    //           otpExpires: new Date(Date.now() + 15 * 60 * 1000),
+    //         },
+    //       });
+    //       return "OTP sent to mobile number.";
+    //     }
+    //     if (
+    //       otp !== user.otp ||
+    //       (user.otpExpires && user.otpExpires < new Date())
+    //     ) {
+    //       throw new GraphQLError("Invalid or expired OTP.");
+    //     }
+    //     await prisma.user.update({
+    //       where: { id: user.id },
+    //       data: { otp: null, otpExpires: null },
+    //     });
+    //     return generateToken({ id: user.id, role: user.role });
+    //   } catch (error) {
+    //     if (error instanceof GraphQLError) {
+    //       throw error;
+    //     }
+    //     throw new GraphQLError(
+    //       "Failed to log in with mobile number. Please try again.",
+    //       {
+    //         extensions: { code: "INTERNAL_SERVER_ERROR" },
+    //       }
+    //     );
+    //   }
+    // }
     async loginWithMobile(mobileNo, otp) {
         try {
+            // Array of mobile numbers for which we want to use the Twilio service
+            const fixedOtpMobileNumbers = ["+923037323452", "0987654321"]; // Replace with your array of numbers
             const user = await prisma_config_1.default.user.findUnique({ where: { mobileNo } });
             if (!user) {
                 throw new graphql_1.GraphQLError("User not found. Please check the phone number and try again.");
             }
+            // If OTP is not provided, decide whether to send OTP using Twilio or use the fixed OTP
             if (!otp) {
-                const generatedOtp = (0, otpGenerator_1.generateOTP)();
-                await (0, otpGenerator_1.sendOTPToMobile)(user.mobileNo, generatedOtp);
-                await prisma_config_1.default.user.update({
-                    where: { id: user.id },
-                    data: {
-                        otp: generatedOtp,
-                        otpExpires: new Date(Date.now() + 15 * 60 * 1000),
-                    },
-                });
-                return "OTP sent to mobile number.";
-            }
-            const fallbackOTP = "12345";
-            if (otp === fallbackOTP) {
-                return "Logged in using fallback OTP.";
-            }
-            else {
-                if (otp !== user.otp) {
-                    throw new graphql_1.GraphQLError("Invalid OTP.");
+                let generatedOtp;
+                if (fixedOtpMobileNumbers.includes(mobileNo)) {
+                    // If the number is in the array, use Twilio to send the OTP
+                    generatedOtp = (0, otpGenerator_1.generateOTP)(); // Generate a random OTP
+                    await (0, otpGenerator_1.sendOTPToMobile)(user.mobileNo, generatedOtp); // Send the generated OTP using Twilio
+                    await prisma_config_1.default.user.update({
+                        where: { id: user.id },
+                        data: {
+                            otp: generatedOtp, // Store the sent OTP
+                            otpExpires: new Date(Date.now() + 15 * 60 * 1000), // Set expiry to 15 minutes from now
+                        },
+                    });
+                    return "OTP sent to mobile number.";
                 }
-                if (user.otpExpires && user.otpExpires < new Date()) {
-                    throw new graphql_1.GraphQLError("Expired OTP.");
+                else {
+                    // Use the fixed OTP
+                    generatedOtp = "12345";
+                    await prisma_config_1.default.user.update({
+                        where: { id: user.id },
+                        data: {
+                            otp: generatedOtp, // Store the fixed OTP
+                            otpExpires: new Date(Date.now() + 15 * 60 * 1000), // Set expiry to 15 minutes from now
+                        },
+                    });
+                    return "OTP is 12345 as your number is not registered in Twilio.";
                 }
             }
+            // Check if provided OTP is correct and not expired
+            if (otp !== user.otp ||
+                (user.otpExpires && user.otpExpires < new Date())) {
+                throw new graphql_1.GraphQLError("Invalid or expired OTP.");
+            }
+            // Clear OTP and expiration time after successful verification
             await prisma_config_1.default.user.update({
                 where: { id: user.id },
                 data: { otp: null, otpExpires: null },
             });
+            // Generate and return a token
             return (0, jwtToken_1.generateToken)({ id: user.id, role: user.role });
         }
         catch (error) {
             if (error instanceof graphql_1.GraphQLError) {
                 throw error;
             }
-            throw new graphql_1.GraphQLError("Failed to log in with mobile number. Please try again. You can use the fallback OTP.", {
+            throw new graphql_1.GraphQLError("Failed to log in with mobile number. Please try again.", {
                 extensions: { code: "INTERNAL_SERVER_ERROR" },
             });
         }
