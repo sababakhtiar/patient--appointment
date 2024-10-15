@@ -169,52 +169,45 @@ let AuthResolver = class AuthResolver {
     // }
     async loginWithMobile(mobileNo, otp) {
         try {
-            // Array of mobile numbers for which we want to use the Twilio service
-            const fixedOtpMobileNumbers = ["+923037323452", "0987654321"]; // Replace with your array of numbers
+            const fixedOtpMobileNumbers = ["+923037323452", "0987654321"];
             const user = await prisma_config_1.default.user.findUnique({ where: { mobileNo } });
             if (!user) {
                 throw new graphql_1.GraphQLError("User not found. Please check the phone number and try again.");
             }
-            // If OTP is not provided, decide whether to send OTP using Twilio or use the fixed OTP
             if (!otp) {
                 let generatedOtp;
                 if (fixedOtpMobileNumbers.includes(mobileNo)) {
-                    // If the number is in the array, use Twilio to send the OTP
-                    generatedOtp = (0, otpGenerator_1.generateOTP)(); // Generate a random OTP
-                    await (0, otpGenerator_1.sendOTPToMobile)(user.mobileNo, generatedOtp); // Send the generated OTP using Twilio
+                    generatedOtp = (0, otpGenerator_1.generateOTP)();
+                    await (0, otpGenerator_1.sendOTPToMobile)(user.mobileNo, generatedOtp);
                     await prisma_config_1.default.user.update({
                         where: { id: user.id },
                         data: {
-                            otp: generatedOtp, // Store the sent OTP
-                            otpExpires: new Date(Date.now() + 15 * 60 * 1000), // Set expiry to 15 minutes from now
+                            otp: generatedOtp,
+                            otpExpires: new Date(Date.now() + 15 * 60 * 1000),
                         },
                     });
                     return "OTP sent to mobile number.";
                 }
                 else {
-                    // Use the fixed OTP
                     generatedOtp = "12345";
                     await prisma_config_1.default.user.update({
                         where: { id: user.id },
                         data: {
-                            otp: generatedOtp, // Store the fixed OTP
-                            otpExpires: new Date(Date.now() + 15 * 60 * 1000), // Set expiry to 15 minutes from now
+                            otp: generatedOtp,
+                            otpExpires: new Date(Date.now() + 15 * 60 * 1000),
                         },
                     });
                     return "OTP is 12345 as your number is not registered in Twilio.";
                 }
             }
-            // Check if provided OTP is correct and not expired
             if (otp !== user.otp ||
                 (user.otpExpires && user.otpExpires < new Date())) {
                 throw new graphql_1.GraphQLError("Invalid or expired OTP.");
             }
-            // Clear OTP and expiration time after successful verification
             await prisma_config_1.default.user.update({
                 where: { id: user.id },
                 data: { otp: null, otpExpires: null },
             });
-            // Generate and return a token
             return (0, jwtToken_1.generateToken)({ id: user.id, role: user.role });
         }
         catch (error) {
