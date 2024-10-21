@@ -49,6 +49,7 @@ const jwtToken_1 = require("../utils/jwtToken");
 const sendResetEmail_1 = require("../utils/sendResetEmail");
 const validation_1 = require("../utils/validation");
 const prisma_config_1 = __importDefault(require("../libs/prisma.config"));
+const types_1 = require("../types/types");
 let AuthResolver = class AuthResolver {
     async signup(name, email, mobileNo, password, role) {
         try {
@@ -108,7 +109,16 @@ let AuthResolver = class AuthResolver {
             if (!isValidPassword) {
                 throw new graphql_1.GraphQLError("Invalid password.");
             }
-            return (0, jwtToken_1.generateToken)({ id: user.id, role: user.role });
+            const accessToken = (0, jwtToken_1.generateAccessToken)({ id: user.id, role: user.role });
+            const refreshToken = (0, jwtToken_1.generateRefreshToken)({
+                id: user.id,
+                role: user.role,
+            });
+            return {
+                user,
+                accessToken,
+                refreshToken,
+            };
         }
         catch (error) {
             if (error instanceof graphql_1.GraphQLError) {
@@ -120,53 +130,6 @@ let AuthResolver = class AuthResolver {
             });
         }
     }
-    // @Mutation(() => String)
-    // async loginWithMobile(
-    //   @Arg("mobileNo") mobileNo: string,
-    //   @Arg("otp", { nullable: true }) otp?: string
-    // ): Promise<string> {
-    //   try {
-    //     const user = await prisma.user.findUnique({ where: { mobileNo } });
-    //     if (!user) {
-    //       throw new GraphQLError(
-    //         "User not found. Please check the phone number and try again."
-    //       );
-    //     }
-    //     if (!otp) {
-    //       const generatedOtp = generateOTP();
-    //       await sendOTPToMobile(user.mobileNo as string, generatedOtp);
-    //       await prisma.user.update({
-    //         where: { id: user.id },
-    //         data: {
-    //           otp: generatedOtp,
-    //           otpExpires: new Date(Date.now() + 15 * 60 * 1000),
-    //         },
-    //       });
-    //       return "OTP sent to mobile number.";
-    //     }
-    //     if (
-    //       otp !== user.otp ||
-    //       (user.otpExpires && user.otpExpires < new Date())
-    //     ) {
-    //       throw new GraphQLError("Invalid or expired OTP.");
-    //     }
-    //     await prisma.user.update({
-    //       where: { id: user.id },
-    //       data: { otp: null, otpExpires: null },
-    //     });
-    //     return generateToken({ id: user.id, role: user.role });
-    //   } catch (error) {
-    //     if (error instanceof GraphQLError) {
-    //       throw error;
-    //     }
-    //     throw new GraphQLError(
-    //       "Failed to log in with mobile number. Please try again.",
-    //       {
-    //         extensions: { code: "INTERNAL_SERVER_ERROR" },
-    //       }
-    //     );
-    //   }
-    // }
     async loginWithMobile(mobileNo, otp) {
         try {
             const fixedOtpMobileNumbers = ["+923037323452", "0987654321"];
@@ -179,26 +142,25 @@ let AuthResolver = class AuthResolver {
                 if (fixedOtpMobileNumbers.includes(mobileNo)) {
                     generatedOtp = (0, otpGenerator_1.generateOTP)();
                     await (0, otpGenerator_1.sendOTPToMobile)(user.mobileNo, generatedOtp);
-                    await prisma_config_1.default.user.update({
-                        where: { id: user.id },
-                        data: {
-                            otp: generatedOtp,
-                            otpExpires: new Date(Date.now() + 15 * 60 * 1000),
-                        },
-                    });
-                    return "OTP sent to mobile number.";
                 }
                 else {
                     generatedOtp = "12345";
-                    await prisma_config_1.default.user.update({
-                        where: { id: user.id },
-                        data: {
-                            otp: generatedOtp,
-                            otpExpires: new Date(Date.now() + 15 * 60 * 1000),
-                        },
-                    });
-                    return "OTP is 12345 as your number is not registered in Twilio.";
                 }
+                await prisma_config_1.default.user.update({
+                    where: { id: user.id },
+                    data: {
+                        otp: generatedOtp,
+                        otpExpires: new Date(Date.now() + 15 * 60 * 1000),
+                    },
+                });
+                return {
+                    user,
+                    accessToken: "",
+                    refreshToken: "",
+                    message: fixedOtpMobileNumbers.includes(mobileNo)
+                        ? "OTP sent to mobile number."
+                        : "OTP is 12345 as your number is not registered in Twilio.",
+                };
             }
             if (otp !== user.otp ||
                 (user.otpExpires && user.otpExpires < new Date())) {
@@ -208,7 +170,16 @@ let AuthResolver = class AuthResolver {
                 where: { id: user.id },
                 data: { otp: null, otpExpires: null },
             });
-            return (0, jwtToken_1.generateToken)({ id: user.id, role: user.role });
+            const accessToken = (0, jwtToken_1.generateAccessToken)({ id: user.id, role: user.role });
+            const refreshToken = (0, jwtToken_1.generateRefreshToken)({
+                id: user.id,
+                role: user.role,
+            });
+            return {
+                user,
+                accessToken,
+                refreshToken,
+            };
         }
         catch (error) {
             if (error instanceof graphql_1.GraphQLError) {
@@ -331,7 +302,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthResolver.prototype, "signup", null);
 __decorate([
-    (0, type_graphql_1.Mutation)(() => String),
+    (0, type_graphql_1.Mutation)(() => types_1.LoginResponse),
     __param(0, (0, type_graphql_1.Arg)("email")),
     __param(1, (0, type_graphql_1.Arg)("password")),
     __metadata("design:type", Function),
@@ -339,7 +310,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthResolver.prototype, "loginWithEmail", null);
 __decorate([
-    (0, type_graphql_1.Mutation)(() => String),
+    (0, type_graphql_1.Mutation)(() => types_1.LoginResponse),
     __param(0, (0, type_graphql_1.Arg)("mobileNo")),
     __param(1, (0, type_graphql_1.Arg)("otp", { nullable: true })),
     __metadata("design:type", Function),

@@ -9,7 +9,7 @@ const isAuth = async ({ context }, next) => {
     }
     try {
         const token = authorization;
-        const user = (0, jwtToken_1.verifyToken)(token);
+        const user = (0, jwtToken_1.verifyAccessToken)(token);
         context.user = user;
     }
     catch (err) {

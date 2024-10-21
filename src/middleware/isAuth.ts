@@ -1,5 +1,5 @@
 import { MiddlewareFn } from "type-graphql";
-import { verifyToken } from "../utils/jwtToken";
+import {  verifyAccessToken } from "../utils/jwtToken";
 import { ContextType } from "../types/types";
 
 export const isAuth: MiddlewareFn<ContextType> = async ({ context }, next) => {
@@ -10,7 +10,7 @@ export const isAuth: MiddlewareFn<ContextType> = async ({ context }, next) => {
   }
   try {
     const token = authorization;
-    const user = verifyToken(token);
+    const user =  verifyAccessToken(token);
     context.user = user;
   } catch (err) {
     throw new Error("Invalid token.");
