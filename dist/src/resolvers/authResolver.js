@@ -179,6 +179,7 @@ let AuthResolver = class AuthResolver {
                 user,
                 accessToken,
                 refreshToken,
+                message: "Login successful.",
             };
         }
         catch (error) {
