@@ -20,30 +20,26 @@
 
 
 import { MiddlewareFn } from "type-graphql";
-import { verifyAccessToken } from "../utils/jwtToken";
+import { verifyAccessToken, isAccessTokenExpired } from "../utils/jwtToken";
 import { ContextType } from "../types/types";
-
+import { GraphQLError } from "graphql";
 export const isAuth: MiddlewareFn<ContextType> = async ({ context }, next) => {
   const authorization = context.req.headers.authorization;
 
   if (!authorization) {
-    throw new Error("Not authenticated. Authorization header is missing.");
+    throw new GraphQLError("Not authenticated.");
   }
 
   try {
-    // Use the entire authorization header as the token
-    const token = authorization.trim();
-    if (!token) {
-      throw new Error("Token not provided.");
+    const token = authorization;
+    if (isAccessTokenExpired(token)) {
+      throw new GraphQLError("Access token expired.");
     }
 
-    // Verify the access token
     const user = verifyAccessToken(token);
     context.user = user;
-  } catch (err:any) {
-    console.error("Authentication error: ", err);
-    throw new Error(err.message || "Authentication failed.");
+  } catch (err) {
+    throw new GraphQLError("Invalid or expired token.");
   }
-
   return next();
 };

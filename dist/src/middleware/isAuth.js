@@ -5,24 +5,22 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isAuth = void 0;
 const jwtToken_1 = require("../utils/jwtToken");
+const graphql_1 = require("graphql");
 const isAuth = async ({ context }, next) => {
     const authorization = context.req.headers.authorization;
     if (!authorization) {
-        throw new Error("Not authenticated. Authorization header is missing.");
+        throw new graphql_1.GraphQLError("Not authenticated.");
     }
     try {
-        // Use the entire authorization header as the token
-        const token = authorization.trim();
-        if (!token) {
-            throw new Error("Token not provided.");
+        const token = authorization;
+        if ((0, jwtToken_1.isAccessTokenExpired)(token)) {
+            throw new graphql_1.GraphQLError("Access token expired.");
         }
-        // Verify the access token
         const user = (0, jwtToken_1.verifyAccessToken)(token);
         context.user = user;
     }
     catch (err) {
-        console.error("Authentication error: ", err);
-        throw new Error(err.message || "Authentication failed.");
+        throw new graphql_1.GraphQLError("Invalid or expired token.");
     }
     return next();
 };

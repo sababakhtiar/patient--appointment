@@ -4,7 +4,11 @@ import { v4 as uuidv4 } from "uuid";
 import { GraphQLError } from "graphql";
 import { UserRole } from "../../prisma/generated/type-graphql";
 import { generateOTP, sendOTPToMobile } from "../utils/otpGenerator";
-import { generateAccessToken, generateRefreshToken } from "../utils/jwtToken";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} from "../utils/jwtToken";
 import { sendResetEmail } from "../utils/sendResetEmail";
 import {
   validateName,
@@ -106,12 +110,13 @@ export class AuthResolver {
         user,
         accessToken,
         refreshToken,
+        message: "Login successful.",
       };
     } catch (error) {
       if (error instanceof GraphQLError) {
         throw error;
       }
-      console.error("Login with email error: ", error);
+
       throw new GraphQLError("Failed to log in with email. Please try again.", {
         extensions: { code: "INTERNAL_SERVER_ERROR" },
       });
@@ -195,6 +200,45 @@ export class AuthResolver {
           extensions: { code: "INTERNAL_SERVER_ERROR" },
         }
       );
+    }
+  }
+
+  @Mutation(() => LoginResponse)
+  async refreshToken(
+    @Arg("refreshToken") refreshToken: string
+  ): Promise<LoginResponse> {
+    try {
+      const userPayload = verifyRefreshToken(refreshToken);
+
+      const user = await prisma.user.findUnique({
+        where: { id: userPayload.id },
+      });
+      if (!user) {
+        throw new GraphQLError("User not found.");
+      }
+
+      const newAccessToken = generateAccessToken({
+        id: user.id,
+        role: user.role,
+      });
+
+      const newRefreshToken = generateRefreshToken({
+        id: user.id,
+        role: user.role,
+      });
+
+      return {
+        user,
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+        message: "Token refreshed successfully.",
+      };
+    } catch (error) {
+      if (error instanceof GraphQLError) {
+        throw error;
+      }
+      console.error("Error refreshing token: ", error);
+      throw new GraphQLError("Failed to refresh token. Please try again.");
     }
   }
 

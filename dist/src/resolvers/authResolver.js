@@ -118,13 +118,13 @@ let AuthResolver = class AuthResolver {
                 user,
                 accessToken,
                 refreshToken,
+                message: "Login successful.",
             };
         }
         catch (error) {
             if (error instanceof graphql_1.GraphQLError) {
                 throw error;
             }
-            console.error("Login with email error: ", error);
             throw new graphql_1.GraphQLError("Failed to log in with email. Please try again.", {
                 extensions: { code: "INTERNAL_SERVER_ERROR" },
             });
@@ -189,6 +189,38 @@ let AuthResolver = class AuthResolver {
             throw new graphql_1.GraphQLError("Failed to log in with mobile number. Please try again.", {
                 extensions: { code: "INTERNAL_SERVER_ERROR" },
             });
+        }
+    }
+    async refreshToken(refreshToken) {
+        try {
+            const userPayload = (0, jwtToken_1.verifyRefreshToken)(refreshToken);
+            const user = await prisma_config_1.default.user.findUnique({
+                where: { id: userPayload.id },
+            });
+            if (!user) {
+                throw new graphql_1.GraphQLError("User not found.");
+            }
+            const newAccessToken = (0, jwtToken_1.generateAccessToken)({
+                id: user.id,
+                role: user.role,
+            });
+            const newRefreshToken = (0, jwtToken_1.generateRefreshToken)({
+                id: user.id,
+                role: user.role,
+            });
+            return {
+                user,
+                accessToken: newAccessToken,
+                refreshToken: newRefreshToken,
+                message: "Token refreshed successfully.",
+            };
+        }
+        catch (error) {
+            if (error instanceof graphql_1.GraphQLError) {
+                throw error;
+            }
+            console.error("Error refreshing token: ", error);
+            throw new graphql_1.GraphQLError("Failed to refresh token. Please try again.");
         }
     }
     async resendOtp(mobileNo) {
@@ -318,6 +350,13 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
 ], AuthResolver.prototype, "loginWithMobile", null);
+__decorate([
+    (0, type_graphql_1.Mutation)(() => types_1.LoginResponse),
+    __param(0, (0, type_graphql_1.Arg)("refreshToken")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AuthResolver.prototype, "refreshToken", null);
 __decorate([
     (0, type_graphql_1.Mutation)(() => String),
     __param(0, (0, type_graphql_1.Arg)("mobileNo")),

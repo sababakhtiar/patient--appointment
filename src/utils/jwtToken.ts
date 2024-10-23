@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken";
+import jwt, { TokenExpiredError } from "jsonwebtoken";
 import { UserPayload } from "../types/types";
 
 export const generateAccessToken = (user: UserPayload): string => {
@@ -26,4 +26,16 @@ export const verifyRefreshToken = (token: string): UserPayload => {
     token,
     process.env.JWT_REFRESH_SECRET as string
   ) as UserPayload;
+};
+
+export const isAccessTokenExpired = (token: string): boolean => {
+  try {
+    jwt.verify(token, process.env.JWT_SECRET as string);
+    return false; 
+  } catch (error) {
+    if (error instanceof TokenExpiredError) {
+      return true; 
+    }
+    throw error; 
+  }
 };
