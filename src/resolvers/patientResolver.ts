@@ -10,7 +10,7 @@ import {
 import { v4 as uuidv4 } from "uuid";
 import { GraphQLError } from "graphql";
 
-import { uploadToCloudinary } from "../utils/cloudinary";
+// import { uploadToCloudinary } from "../utils/cloudinary";
 import {
   validateName,
   validateEmail,
@@ -44,6 +44,8 @@ export class PatientResolver {
     }
   }
 
+
+  
   @Mutation(() => String)
   @UseMiddleware(isAuth)
   async addPatient(
@@ -72,12 +74,12 @@ export class PatientResolver {
       validateNonEmpty(medicalRecord, "medical record");
       validateGender(gender);
 
-      const uploadedProfilePhoto = await uploadToCloudinary(photo);
-      const uploadedPrescriptionPhotos: string[] = [];
-      for (const prescription of prescriptions) {
-        const uploadedPrescription = await uploadToCloudinary(prescription);
-        uploadedPrescriptionPhotos.push(uploadedPrescription);
-      }
+      // const uploadedProfilePhoto = await uploadToCloudinary(photo);
+      // const uploadedPrescriptionPhotos: string[] = [];
+      // for (const prescription of prescriptions) {
+      //   const uploadedPrescription = await uploadToCloudinary(prescription);
+      //   uploadedPrescriptionPhotos.push(uploadedPrescription);
+      // }
 
       const selectedDoctor = await prisma.doctor.findUnique({
         where: { id: doctorId },
@@ -105,8 +107,10 @@ export class PatientResolver {
           age,
           gender: gender as Gender,
           medicalRecord,
-          prescriptions: uploadedPrescriptionPhotos,
-          photo: uploadedProfilePhoto,
+          prescriptions,
+          photo,
+          // prescriptions: uploadedPrescriptionPhotos,
+          // photo: uploadedProfilePhoto,
           doctorId: selectedDoctor.id,
           userId: user.id,
         },

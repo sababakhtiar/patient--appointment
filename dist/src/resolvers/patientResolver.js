@@ -19,7 +19,7 @@ exports.PatientResolver = void 0;
 const type_graphql_1 = require("type-graphql");
 const uuid_1 = require("uuid");
 const graphql_1 = require("graphql");
-const cloudinary_1 = require("../utils/cloudinary");
+// import { uploadToCloudinary } from "../utils/cloudinary";
 const validation_1 = require("../utils/validation");
 const type_graphql_2 = require("../../prisma/generated/type-graphql");
 const isAuth_1 = require("../middleware/isAuth");
@@ -54,12 +54,12 @@ let PatientResolver = class PatientResolver {
             (0, validation_1.validateNonEmpty)(address, "address");
             (0, validation_1.validateNonEmpty)(medicalRecord, "medical record");
             (0, validation_1.validateGender)(gender);
-            const uploadedProfilePhoto = await (0, cloudinary_1.uploadToCloudinary)(photo);
-            const uploadedPrescriptionPhotos = [];
-            for (const prescription of prescriptions) {
-                const uploadedPrescription = await (0, cloudinary_1.uploadToCloudinary)(prescription);
-                uploadedPrescriptionPhotos.push(uploadedPrescription);
-            }
+            // const uploadedProfilePhoto = await uploadToCloudinary(photo);
+            // const uploadedPrescriptionPhotos: string[] = [];
+            // for (const prescription of prescriptions) {
+            //   const uploadedPrescription = await uploadToCloudinary(prescription);
+            //   uploadedPrescriptionPhotos.push(uploadedPrescription);
+            // }
             const selectedDoctor = await prisma_config_1.default.doctor.findUnique({
                 where: { id: doctorId },
             });
@@ -82,8 +82,10 @@ let PatientResolver = class PatientResolver {
                     age,
                     gender: gender,
                     medicalRecord,
-                    prescriptions: uploadedPrescriptionPhotos,
-                    photo: uploadedProfilePhoto,
+                    prescriptions,
+                    photo,
+                    // prescriptions: uploadedPrescriptionPhotos,
+                    // photo: uploadedProfilePhoto,
                     doctorId: selectedDoctor.id,
                     userId: user.id,
                 },
