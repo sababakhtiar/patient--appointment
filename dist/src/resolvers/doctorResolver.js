@@ -33,7 +33,7 @@ let DoctorResolver = class DoctorResolver {
             (0, validation_1.validateName)(name);
             (0, validation_1.validateEmail)(email);
             (0, validation_1.validateGender)(gender);
-            const uploadedProfilePhoto = await (0, cloudinary_1.uploadToCloudinary)(profilePhoto);
+            // const uploadedProfilePhoto = await uploadToCloudinary(profilePhoto);
             const existingDoctor = await prisma_config_1.default.doctor.findUnique({
                 where: { userId: user.id },
             });
@@ -46,7 +46,8 @@ let DoctorResolver = class DoctorResolver {
                     userId: user.id,
                     name,
                     email,
-                    profilePhoto: uploadedProfilePhoto,
+                    profilePhoto,
+                    // profilePhoto: uploadedProfilePhoto,
                     gender: gender,
                 },
             });

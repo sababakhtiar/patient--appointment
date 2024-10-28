@@ -34,7 +34,7 @@ export class DoctorResolver {
       validateEmail(email);
       validateGender(gender);
 
-      const uploadedProfilePhoto = await uploadToCloudinary(profilePhoto);
+      // const uploadedProfilePhoto = await uploadToCloudinary(profilePhoto);
 
       const existingDoctor = await prisma.doctor.findUnique({
         where: { userId: user.id },
@@ -50,7 +50,8 @@ export class DoctorResolver {
           userId: user.id,
           name,
           email,
-          profilePhoto: uploadedProfilePhoto,
+          profilePhoto,
+          // profilePhoto: uploadedProfilePhoto,
           gender: gender as Gender,
         },
       });
