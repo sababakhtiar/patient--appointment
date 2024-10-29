@@ -31,7 +31,11 @@ let PatientResolver = class PatientResolver {
             if (user.role !== "PATIENT") {
                 throw new graphql_1.GraphQLError("Only patients can view doctor lists.");
             }
-            return await prisma_config_1.default.doctor.findMany();
+            return await prisma_config_1.default.doctor.findMany({
+                include: {
+                    slots: true, // This will include all associated slots for each doctor
+                },
+            });
         }
         catch (error) {
             if (error instanceof graphql_1.GraphQLError) {

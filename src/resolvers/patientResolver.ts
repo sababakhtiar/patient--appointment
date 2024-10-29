@@ -24,6 +24,8 @@ import { ContextType } from "../types/types";
 import prisma from "../libs/prisma.config";
 @Resolver()
 export class PatientResolver {
+
+  
   @Query(() => [Doctor])
   @UseMiddleware(isAuth)
   async getAllDoctors(@Ctx() context: ContextType): Promise<Doctor[]> {
@@ -33,7 +35,11 @@ export class PatientResolver {
         throw new GraphQLError("Only patients can view doctor lists.");
       }
 
-      return await prisma.doctor.findMany();
+      return await prisma.doctor.findMany({
+        include: {
+          slots: true, // This will include all associated slots for each doctor
+        },
+      });
     } catch (error) {
       if (error instanceof GraphQLError) {
         throw error;
